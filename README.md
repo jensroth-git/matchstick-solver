@@ -1,10 +1,12 @@
-# Matchstick Solver
+# Matchstick Equation Solver
 
-A TypeScript package for solving matchstick equation puzzles.
+A TypeScript library for solving matchstick equation puzzles.
 
-## What are Matchstick Puzzles?
+## What are Matchstick Equations?
 
-Matchstick puzzles are mathematical challenges where you need to move, add, or remove matchsticks to fix an equation. For example, turning "5+7=2" into a valid equation like "9-7=2" by moving one matchstick.
+Matchstick equations are puzzles where you have an equation represented by matchsticks, and you need to move a certain number of matchsticks to make the equation valid.
+
+For example, given the incorrect equation `1+1=3`, you could move one matchstick from the `3` to make `1+1=2`, which is correct.
 
 ## Installation
 
@@ -12,126 +14,96 @@ Matchstick puzzles are mathematical challenges where you need to move, add, or r
 npm install matchstick-solver
 ```
 
-## Usage
+## Basic Usage
 
 ```typescript
-import MatchstickSolver, { matchstickFormatter } from 'matchstick-solver';
+import MatchstickSolver from 'matchstick-solver';
 
-// Create a solver instance with an equation and max moves (default is 1)
-const solver = new MatchstickSolver('5+3=6', 1);  // 1 move max
-const multiMoveSolver = new MatchstickSolver('2+3=8', 2);  // 2 moves max
+// Create a solver for a specific equation
+const solver = new MatchstickSolver('1+1=3');
 
-// Solve the equation
+// Find solutions (by default, moves 1 matchstick)
 const solutions = solver.solve();
-const multiMoveSolutions = multiMoveSolver.solve();
 
-// Process the solutions
-solutions.forEach(solution => {
-  console.log(`Original: ${solution.equation}`);
+// Display solutions
+for (const solution of solutions) {
+  console.log(`Original equation: ${solution.equation}`);
   console.log(`Solution: ${solution.solution}`);
   console.log('Steps:');
-  solution.steps.forEach(step => console.log(`- ${step}`));
-});
-
-// Display the equation in ASCII matchstick format
-console.log(matchstickFormatter('5+3=6'));
-```
-
-### Solution Object
-
-Each solution returned by the solver has the following structure:
-
-```typescript
-{
-  equation: string;   // The original equation
-  solution: string;   // The solved equation
-  steps: string[];    // Description of steps taken to solve
+  for (const step of solution.steps) {
+    console.log(`- ${step}`);
+  }
 }
 ```
 
-### Multiple Matchstick Moves
-
-By default, the solver will find solutions that require only a single matchstick move. You can specify a higher number to find solutions requiring multiple moves:
+## Advanced Usage
 
 ```typescript
-// Find solutions requiring up to 2 matchstick moves
-const solver = new MatchstickSolver('2+3=8', 2);
+// Create a solver with more options
+const solver = new MatchstickSolver(
+  '2+3=8',        // The equation to solve
+  2,              // Maximum number of matchsticks to move (default: 1)
+  true,           // Consider flipped solutions (default: true)
+  true            // Filter out invalid solutions (default: true)
+);
+
 const solutions = solver.solve();
 ```
 
-For multiple move solutions, the `steps` array will contain each move that was made to reach the solution.
+## Features
 
-### ASCII Matchstick Visualization
-
-The package includes a formatter to visualize equations as ASCII matchstick art:
-
-```typescript
-import { matchstickFormatter } from 'matchstick-solver';
-
-const asciiArt = matchstickFormatter('8+3=11');
-console.log(asciiArt);
-```
-
-Output:
-```
- _     _    _ _ 
-|_| |  _|  | | |
-|_|-+- _|  | | |
-```
-
-## How It Works
-
-The solver works by applying matchstick rules to generate possible mutations of the equation:
-
-1. **Adding/Removing Matchsticks**: Some digits can be transformed by adding or removing matchsticks (e.g., '5' to '9' by adding one matchstick)
-2. **Transforming Digits**: Some digits can be transformed by rearranging matchsticks (e.g., '6' to '9' by flipping)
-3. **Evaluating Equations**: Each generated mutation is evaluated to check if it's a valid equation
-
-For multiple move solutions, the solver recursively applies these rules, keeping track of the changes made at each step.
-
-## Development
-
-### Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Build the package
-npm run build
-
-# Run tests
-npm test
-```
-
-### Available Scripts
-
-- `npm run build` - Builds the package
-- `npm run clean` - Removes the dist directory
-- `npm test` - Runs all tests
-- `npm run test:watch` - Runs tests in watch mode
-- `npm run test:coverage` - Runs tests with coverage reporting
-- `npm run lint` - Checks code formatting
-- `npm run format` - Formats code using Prettier
-- `npm run dev` - Runs the main file using ts-node for development
+- Solve matchstick equations by moving 1 or more matchsticks
+- Support for digits 0-9 and operators +, -, *, /, =
+- Option to consider flipped solutions (e.g., 6 and 9 can be flipped)
+- ASCII art visualization of matchstick patterns
+- Comprehensive solution steps
 
 ## Examples
 
-Here are some example equations and their solutions:
+Check the `examples/usage.ts` file for more usage examples.
 
-### Single Move Examples
-- `8+3-4=0` → `6+3-9=0` or `9+3-4=8`
-- `10+10=8` → `18-10=8`
-- `6-5=17` → `6+5=11`
-- `5+7=2` → `9-7=2`
+## API
 
-### Multiple Move Examples
-- `2+3=8` → `2+3=5` (2 moves)
-- `9-5=1` → `9-8=1` (2 moves)
-- `6+3=7` → `6=3+3` (2 moves)
+### `MatchstickSolver`
 
-For more examples, see the `src/example.ts` file.
+The main class for solving matchstick equations.
+
+#### Constructor
+
+```typescript
+constructor(
+  equation: string,
+  maxMovableMatches: number = 1,
+  includeFlipped: boolean = true,
+  filterSolutions: boolean = true
+)
+```
+
+#### Methods
+
+- `solve()`: Returns an array of solutions
+
+### Solution Object
+
+Each solution has the following properties:
+
+- `equation`: The original equation
+- `solution`: The solved equation
+- `steps`: Array of steps taken to reach the solution
+
+## Development
+
+```bash
+# Run tests
+npm test
+
+# Build the library
+npm run build
+
+# Run examples
+npm run examples
+```
 
 ## License
 
-ISC 
+MIT 
