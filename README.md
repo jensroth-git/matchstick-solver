@@ -75,7 +75,7 @@ constructor(
   equation: string,
   maxMovableMatches: number = 1,
   includeFlipped: boolean = true,
-  fincludePrepended: boolean = false
+  includePrepended: boolean = false
 )
 ```
 
