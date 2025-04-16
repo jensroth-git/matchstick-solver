@@ -59,7 +59,7 @@ function advancedExample() {
 function compareVariants() {
   console.log('Comparing different equation variants:');
 
-  const equations = ['5+7=2', '6-4=4', '8+3=6', '2+2=7'];
+  const equations = ['5+7=2', '8+3-4=0', '10+10=8', '7x5/3=2'];
 
   for (const equation of equations) {
     const solver = new MatchstickSolver(equation);

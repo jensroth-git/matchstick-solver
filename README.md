@@ -41,10 +41,10 @@ for (const solution of solutions) {
 ```typescript
 // Create a solver with more options
 const solver = new MatchstickSolver(
-  '2+3=8',        // The equation to solve
-  2,              // Maximum number of matchsticks to move (default: 1)
-  true,           // Consider flipped solutions (default: true)
-  true            // Filter out invalid solutions (default: true)
+  '2+3=8', // The equation to solve
+  2, // Maximum number of matchsticks to move (default: 1)
+  true, // Consider flipped solutions (default: true)
+  true // allow prepending to the solution e.g. 1=1+2 to -1=1-2
 );
 
 const solutions = solver.solve();
@@ -53,8 +53,8 @@ const solutions = solver.solve();
 ## Features
 
 - Solve matchstick equations by moving 1 or more matchsticks
-- Support for digits 0-9 and operators +, -, *, /, =
-- Option to consider flipped solutions (e.g., 6 and 9 can be flipped)
+- Support for digits 0-9 and operators +, -, \*, /, =
+- Option to consider flipped solutions 180 degrees (e.g., 6 and 9 can be valid when flipped over etc.)
 - ASCII art visualization of matchstick patterns
 - Comprehensive solution steps
 
@@ -75,7 +75,7 @@ constructor(
   equation: string,
   maxMovableMatches: number = 1,
   includeFlipped: boolean = true,
-  filterSolutions: boolean = true
+  fincludePrepended: boolean = false
 )
 ```
 
@@ -106,4 +106,4 @@ npm run examples
 
 ## License
 
-MIT 
+MIT

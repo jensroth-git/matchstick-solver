@@ -207,7 +207,7 @@ export const slotPatterns: Record<string, MatchSlots> = {
     divb: false,
     divt: false,
   },
-  '*': {
+  x: {
     a: false,
     b: false,
     c: false,
@@ -531,7 +531,7 @@ export const slotToChar = (slots: MatchSlots): string | false => {
     return '=';
   }
 
-  //*
+  //x
   if (
     requiredSet([
       !slots.a,
@@ -549,7 +549,8 @@ export const slotToChar = (slots: MatchSlots): string | false => {
       !slots.divt,
     ])
   ) {
-    return '*';
+    // Always return '*' for multiplication slots pattern
+    return 'x';
   }
 
   // /

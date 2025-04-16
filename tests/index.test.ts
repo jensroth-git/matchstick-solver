@@ -56,6 +56,7 @@ describe('MatchstickSolver', () => {
         { original: '+', expected: '+' },
         { original: '-', expected: '-' },
         { original: '=', expected: '=' },
+        { original: 'x', expected: 'x' },
       ];
 
       for (const { original, expected } of flippablePairs) {
@@ -190,19 +191,22 @@ describe('MatchstickSolver', () => {
 
   describe('solve() with multiple moves', () => {
     const multiMoveTestCases = [
-      { equation: '2+3=8', maxMoves: 2, expectedMinSolutions: 7 },
-      { equation: '9-5=1', maxMoves: 2, expectedMinSolutions: 1 },
-      { equation: '6+3=7', maxMoves: 2, expectedMinSolutions: 0 },
-      { equation: '1+8=0', maxMoves: 2, expectedMinSolutions: 1 },
+      { equation: '2+3=8', maxMoves: 2, expectedSolutions: 7 },
+      { equation: '9-5=1', maxMoves: 2, expectedSolutions: 5 },
+      { equation: '6+3=7', maxMoves: 2, expectedSolutions: 0 },
+      { equation: '1+8=0', maxMoves: 2, expectedSolutions: 2 },
+      { equation: '8+4=7', maxMoves: 2, expectedSolutions: 2 },
+      { equation: '9-6=1', maxMoves: 2, expectedSolutions: 3 },
+      { equation: '1+2=4', maxMoves: 2, expectedSolutions: 3 },
     ];
 
-    multiMoveTestCases.forEach(({ equation, maxMoves, expectedMinSolutions }) => {
-      it(`should solve "${equation}" with at least ${expectedMinSolutions} solution(s) using ${maxMoves} moves`, () => {
+    multiMoveTestCases.forEach(({ equation, maxMoves, expectedSolutions }) => {
+      it(`should solve "${equation}" with at least ${expectedSolutions} solution(s) using ${maxMoves} moves`, () => {
         const solver = new MatchstickSolver(equation, maxMoves);
         const solutions = solver.solve();
 
-        // We expect at least some solutions
-        expect(solutions.length).toBeGreaterThanOrEqual(expectedMinSolutions);
+        // We expect these number of solutions
+        expect(solutions.length).toBe(expectedSolutions);
 
         if (solutions.length > 0) {
           // Verify that we have the right number of steps for a multi-move solution
