@@ -71,7 +71,6 @@ function compareVariants() {
     }
   }
 }
-
 // Execute examples
 console.log('=== MATCHSTICK SOLVER EXAMPLES ===');
 console.log('-'.repeat(30));

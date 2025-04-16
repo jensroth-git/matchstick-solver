@@ -22,8 +22,12 @@
     "solver",
     "equation"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Jens Roth",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jensroth-git/matchstick-solver.git"
+  },
+  "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^22.14.1",
