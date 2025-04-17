@@ -7,7 +7,7 @@ import MatchstickSolver, {
   boardToEquation,
   flipBoard,
   matchstickFormatter,
-} from '../src/index';
+} from '../src/index.js';
 
 describe('MatchstickSolver', () => {
   it('should be instantiable', () => {

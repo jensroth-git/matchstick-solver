@@ -4,7 +4,8 @@
  * A package for solving matchstick equation puzzles
  */
 
-import { slotPatterns, slotToChar } from './slotDefinitions';
+import { slotPatterns, slotToChar } from './slotDefinitions.js';
+import { MatchSlots } from './types.js';
 
 export const version = '1.0.0';
 
@@ -14,30 +15,6 @@ export type Solution = {
   solution: string;
   steps: string[];
 };
-
-// Slot-based representation for matchstick positions
-export interface MatchSlots {
-  // Standard 7-segment display slots
-  a: boolean; // top horizontal
-  b: boolean; // top-right vertical
-  c: boolean; // bottom-right vertical
-  d: boolean; // bottom horizontal
-  e: boolean; // bottom-left vertical
-  f: boolean; // top-left vertical
-  g: boolean; // middle horizontal
-  altg: boolean; // middle horizontal needed for =
-
-  //addition symbol
-  addv: boolean; // vertical for addition with either g or altg
-
-  // multiplication symbol
-  mul_tl_br: boolean; // diagonal top-left to bottom-right
-  mul_tr_bl: boolean; // diagonal top-right to bottom-left
-
-  //division symbol
-  divb: boolean; // bottom horizontal for division
-  divt: boolean; // top horizontal for division
-}
 
 // The entire equation as a series of slot cells
 export type MatchBoard = MatchSlots[];
@@ -435,6 +412,11 @@ export default class MatchstickSolver {
     // Create our custom data structures for pure number array keys
     const memoCache = new Map<number, any>();
     const visitedStates = new Map<number, any>();
+
+    //check if the equation is already solved
+    if (evaluateEquation(this.originalEquation)) {
+      return []; // return empty array if the equation is already solved
+    }
 
     // Pre-compute the initial board key
     const initialBoardKey = this.createBoardKey(this.board);

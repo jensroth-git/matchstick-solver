@@ -1,4 +1,4 @@
-import MatchstickSolver from '../src/index';
+import MatchstickSolver from '../src/index.js';
 
 /**
  * Tests based on real matchstick puzzles from https://www.mindyourlogic.com/matchstick-puzzles

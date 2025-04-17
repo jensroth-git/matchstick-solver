@@ -4,8 +4,7 @@
  * This file contains the definitions for character slot patterns
  * and recognition functions.
  */
-
-import { MatchSlots } from './index';
+import { MatchSlots } from './types.js';
 
 // Default slot patterns for characters
 export const slotPatterns: Record<string, MatchSlots> = {
