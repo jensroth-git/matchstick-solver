@@ -59,10 +59,6 @@ The package uses a WebAssembly implementation that transforms the traditional tr
 - Performance is consistent regardless of the number of moves required
 - Even complex puzzles requiring multiple moves resolve instantly
 
-## API
-
-See the [API documentation](docs/api.md) for detailed information.
-
 ## License
 
 MIT
