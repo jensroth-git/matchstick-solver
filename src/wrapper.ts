@@ -13,7 +13,7 @@ interface MatchstickWasmModule {
 }
 
 // Define types for the solution objects
-interface Move {
+export interface Move {
   fromChar: string;
   fromBit: number;
   toChar: string;
