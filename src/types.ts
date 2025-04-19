@@ -21,3 +21,20 @@ export interface MatchSlots {
   divb: boolean; // bottom horizontal for division
   divt: boolean; // top horizontal for division
 }
+
+export type MatchstickMove = {
+  fromChar: number;
+  fromBit: number;
+  toChar: number;
+  toBit: number;
+};
+
+//solution type
+export type Solution = {
+  solution: string;
+  steps: MatchstickMove[];
+  flipped: boolean;
+};
+
+// The entire equation as a series of slot cells
+export type MatchBoard = MatchSlots[];

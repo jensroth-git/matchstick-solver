@@ -4,144 +4,15 @@
  * A package for solving matchstick equation puzzles
  */
 
+import { BitBoard, BitSearch } from './bitsearch.js';
 import { slotPatterns, slotToChar } from './slotDefinitions.js';
-import { MatchSlots } from './types.js';
+import { MatchSlots, MatchBoard, Solution, MatchstickMove } from './types.js';
 
-export const version = '1.0.0';
-
-//solution type
-export type Solution = {
-  equation: string;
-  solution: string;
-  steps: string[];
-};
-
-// The entire equation as a series of slot cells
-export type MatchBoard = MatchSlots[];
+export { type MatchSlots, type MatchBoard, type Solution };
+export * from './formatter.js';
 
 // Re-export the slot definitions
 export { slotPatterns, slotToChar };
-
-// ASCII art representations of digits and operators
-// prettier-ignore
-const matchstickPatterns: Record<string, string[]> = {
-  '0': [
-    ' _ ',
-    '| |',
-    '|_|',
-  ],
-
-  '1': [
-    '   ',
-    '  |',
-    '  |',
-  ],
-
-  '2': [
-    ' _ ', 
-    ' _|', 
-    '|_ '
-  ],
-
-  '3': [
-    ' _ ', 
-    ' _|', 
-    ' _|'
-  ],
-
-  '4': [
-    '   ', 
-    '|_|', 
-    '  |'
-  ],
-
-  '5': [
-    ' _ ', 
-    '|_ ', 
-    ' _|'
-  ],
-
-  '6': [
-    ' _ ', 
-    '|_ ', 
-    '|_|'
-  ],
-
-  '7': [
-    ' _ ', 
-    '  |', 
-    '  |'
-  ],
-
-  '8': [
-    ' _ ', 
-    '|_|', 
-    '|_|'
-  ],
-
-  '9': [
-    ' _ ', 
-    '|_|', 
-    ' _|'
-  ],
-
-  '+': [
-    '   ', 
-    '   ', 
-    ' + '
-  ],
-
-  '-': [
-    '   ', 
-    '   ', 
-    ' - '
-  ],
-
-  'x': [
-    '   ',
-    '   ',
-    ' x ',
-  ],
-
-  '*': [
-    '   ',
-    '   ',
-    ' x ',
-  ],
-
-  '/': [
-    '   ',
-    '  /',
-    ' / ',
-  ],
-
-  '=': [
-    '   ', 
-    '---', 
-    '---'
-  ],
-
-  ' ': [
-    '   ', 
-    '   ', 
-    '   '
-  ]
-};
-
-// matchstick formatter for ascii art
-export const matchstickFormatter = (equation: string): string => {
-  const chars = equation.split('');
-  const lines: string[] = ['', '', ''];
-
-  for (const char of chars) {
-    const pattern = matchstickPatterns[char] || ['   ', '   ', '   '];
-    lines[0] += pattern[0];
-    lines[1] += pattern[1];
-    lines[2] += pattern[2];
-  }
-
-  return lines.join('\n');
-};
 
 // Function to recognize what character a slot pattern represents
 export function recognizeCharacter(slots: MatchSlots): string | false {
@@ -235,500 +106,112 @@ export default class MatchstickSolver {
   constructor(
     private readonly equation: string,
     private readonly maxMovableMatches: number = 1,
-    private readonly includeFlipped: boolean = true,
-    private readonly includePrepended: boolean = false
+    private readonly allowFlipping: boolean = true,
+    private readonly allowPrepending: boolean = false,
+    private readonly allowAppending: boolean = false
   ) {
+    this.originalEquation = equation;
+
     // Normalize the equation first
     this.normalizedEquation = preprocessEquation(equation);
-    this.originalEquation = equation;
     this.board = equationToBoard(this.normalizedEquation);
   }
 
-  // Helper function to convert a MatchSlots object to a binary number
-  private slotsToBinary(slots: MatchSlots): number {
-    let bitmask = 0;
-
-    // Map each slot to a bit position
-    const slotBits: Record<keyof MatchSlots, number> = {
-      a: 1,
-      b: 2,
-      c: 4,
-      d: 8,
-      e: 16,
-      f: 32,
-      g: 64,
-      altg: 128,
-      addv: 256,
-      mul_tl_br: 512,
-      mul_tr_bl: 1024,
-      divb: 2048,
-      divt: 4096,
-    };
-
-    // Set bits for each active slot
-    for (const [key, value] of Object.entries(slots)) {
-      if (value) {
-        bitmask |= slotBits[key as keyof MatchSlots];
-      }
-    }
-
-    return bitmask;
-  }
-
-  // Helper function to create a compact board key using number arrays
-  private createBoardKey(board: MatchBoard): number[] {
-    // Convert each slot in the board to a binary number
-    return board.map(slots => this.slotsToBinary(slots));
-  }
-
-  // Helper methods to work with visited states using nested Maps for array keys
-  private addToVisitedStates(visitedStates: Map<number, any>, boardKey: number[]): void {
-    let currentMap = visitedStates;
-
-    // Navigate through the array, creating maps as needed
-    for (let i = 0; i < boardKey.length; i++) {
-      const value = boardKey[i];
-
-      if (i === boardKey.length - 1) {
-        // Last element, mark as visited
-        currentMap.set(value, true);
-      } else {
-        // Create next level map if it doesn't exist
-        if (!currentMap.has(value)) {
-          currentMap.set(value, new Map<number, any>());
-        }
-        currentMap = currentMap.get(value);
-      }
-    }
-  }
-
-  private hasVisitedState(visitedStates: Map<number, any>, boardKey: number[]): boolean {
-    let currentMap = visitedStates;
-
-    // Navigate through the array
-    for (let i = 0; i < boardKey.length; i++) {
-      const value = boardKey[i];
-
-      if (!currentMap.has(value)) {
-        return false;
-      }
-
-      if (i === boardKey.length - 1) {
-        // Last element, check if visited
-        return true;
-      }
-
-      currentMap = currentMap.get(value);
-    }
-
-    return false;
-  }
-
-  // Helper methods to work with memoization cache using nested Maps for array keys
-  private setInMemoCache(
-    memoCache: Map<number, any>,
-    boardKey: number[],
-    movesMade: number,
-    value: Solution[]
-  ): void {
-    let currentMap = memoCache;
-
-    // Navigate through the array, creating maps as needed
-    for (let i = 0; i < boardKey.length; i++) {
-      const keyValue = boardKey[i];
-
-      if (i === boardKey.length - 1) {
-        // Last element, create/get the moves map
-        if (!currentMap.has(keyValue)) {
-          currentMap.set(keyValue, new Map<number, Solution[]>());
-        }
-        const movesMap = currentMap.get(keyValue);
-        movesMap.set(movesMade, value);
-      } else {
-        // Create next level map if it doesn't exist
-        if (!currentMap.has(keyValue)) {
-          currentMap.set(keyValue, new Map<number, any>());
-        }
-        currentMap = currentMap.get(keyValue);
-      }
-    }
-  }
-
-  private getFromMemoCache(
-    memoCache: Map<number, any>,
-    boardKey: number[],
-    movesMade: number
-  ): Solution[] | undefined {
-    let currentMap = memoCache;
-
-    // Navigate through the array
-    for (let i = 0; i < boardKey.length; i++) {
-      const keyValue = boardKey[i];
-
-      if (!currentMap.has(keyValue)) {
-        return undefined;
-      }
-
-      if (i === boardKey.length - 1) {
-        // Last element, get from the moves map
-        const movesMap = currentMap.get(keyValue);
-        return movesMap.get(movesMade);
-      }
-
-      currentMap = currentMap.get(keyValue);
-    }
-
-    return undefined;
-  }
-
-  private hasMemoCache(
-    memoCache: Map<number, any>,
-    boardKey: number[],
-    movesMade: number
-  ): boolean {
-    let currentMap = memoCache;
-
-    // Navigate through the array
-    for (let i = 0; i < boardKey.length; i++) {
-      const keyValue = boardKey[i];
-
-      if (!currentMap.has(keyValue)) {
-        return false;
-      }
-
-      if (i === boardKey.length - 1) {
-        // Last element, check in the moves map
-        const movesMap = currentMap.get(keyValue);
-        return movesMap.has(movesMade);
-      }
-
-      currentMap = currentMap.get(keyValue);
-    }
-
-    return false;
-  }
-
   solve(): Solution[] {
-    // Create our custom data structures for pure number array keys
-    const memoCache = new Map<number, any>();
-    const visitedStates = new Map<number, any>();
-
     //check if the equation is already solved
     if (evaluateEquation(this.originalEquation)) {
       return []; // return empty array if the equation is already solved
     }
 
-    // Pre-compute the initial board key
-    const initialBoardKey = this.createBoardKey(this.board);
+    const bitSearch = new BitSearch();
 
-    // Get permutations from the standard solver
-    let permutations = this.findPermutations(
-      this.board,
-      initialBoardKey,
-      [],
-      0,
-      this.maxMovableMatches,
-      memoCache,
-      visitedStates
-    );
+    const startingBitBoard = bitSearch.boardToBits(this.board);
+    const solutions = bitSearch.searchBoard(startingBitBoard, {
+      maxDepth: this.maxMovableMatches,
+      allowPrepend: this.allowPrepending,
+      allowAppend: this.allowAppending,
+    });
 
-    // remove duplicates
-    permutations = this.removeDuplicateSolutions(permutations);
+    const solutionEquations = new Set<string>();
 
-    return permutations;
-  }
-
-  private removeDuplicateSolutions(solutions: Solution[]): Solution[] {
-    const unique = new Map<string, Solution>();
-
-    //sort by least steps first
-    solutions = solutions.sort((a, b) => a.steps.length - b.steps.length);
+    const validSolutions: {
+      bitboard: BitBoard;
+      board: MatchBoard;
+      equation: string;
+      moves: MatchstickMove[];
+      flipped: boolean;
+    }[] = [];
 
     for (const solution of solutions) {
-      if (!unique.has(solution.solution)) {
-        unique.set(solution.solution, solution);
-      }
-    }
+      //solutions is a raw mess of bits, we need to convert them back to boards
+      const board = bitSearch.bitsToBoard(solution);
 
-    return Array.from(unique.values());
-  }
+      let moves: MatchstickMove[] = [];
 
-  private findPermutations(
-    board: MatchBoard,
-    boardKey: number[],
-    currentSteps: string[],
-    movesMade: number,
-    maxMoves: number,
-    memoCache: Map<number, any>,
-    visitedStates: Map<number, any>
-  ): Solution[] {
-    // Check if we've already computed this state
-    if (this.hasMemoCache(memoCache, boardKey, movesMade)) {
-      // For cached states, we need to append the current steps
-      const cachedResults = this.getFromMemoCache(memoCache, boardKey, movesMade)!;
-      return cachedResults.map(solution => ({
-        ...solution,
-        steps: [...currentSteps, ...solution.steps],
-      }));
-    }
+      const checkVariation = (board: MatchBoard, flipped: boolean = false) => {
+        //check if the board is valid
+        const equation = boardToEquation(board);
+        if (equation === null) {
+          return;
+        }
 
-    // Mark this state as visited
-    this.addToVisitedStates(visitedStates, boardKey);
+        if (equation == '3+5=8') {
+          debugger;
+          console.log(equation);
+        }
 
-    // Base case: we've made all the moves we can
-    if (movesMade >= maxMoves) {
-      // Convert board to equation string
-      const equation = boardToEquation(board);
+        if (solutionEquations.has(equation)) {
+          //check if the equation is already in the set
+          return;
+        }
 
-      // Return valid solutions
-      const result =
-        equation && equation !== this.normalizedEquation && evaluateEquation(equation)
-          ? [
-              {
-                equation: this.originalEquation,
-                solution: equation,
-                steps: [...currentSteps],
-              },
-            ]
-          : [];
+        //check if the equation is valid
+        if (evaluateEquation(equation)) {
+          //only calculate moves once per solution
+          if (moves.length === 0) {
+            moves = bitSearch.diffBoards(startingBitBoard, solution);
+          }
 
-      // Store the result in the cache with empty steps
-      this.setInMemoCache(
-        memoCache,
-        boardKey,
-        movesMade,
-        result.map(solution => ({
-          ...solution,
-          steps: [], // Store with empty steps so we can append current steps when retrieved
-        }))
-      );
+          //add the equation to the set
+          solutionEquations.add(equation);
 
-      return result;
-    }
-
-    // Generate all possible next moves
-    const possibleMoves = this.generateAllPossibleMoves(board, boardKey, movesMade, visitedStates);
-    let allPermutations: Solution[] = [];
-
-    // Try each possible move
-    for (const { newBoard, newBoardKey, description } of possibleMoves) {
-      // For intermediate states, check if we have a valid solution already
-      if (movesMade < maxMoves - 1) {
-        const equation = boardToEquation(newBoard);
-        if (equation && equation !== this.normalizedEquation && evaluateEquation(equation)) {
-          // Found a valid solution, add it
-          allPermutations.push({
-            equation: this.originalEquation,
-            solution: equation,
-            steps: [...currentSteps, description],
+          validSolutions.push({
+            bitboard: solution,
+            board,
+            equation,
+            moves,
+            flipped,
           });
         }
+      };
+
+      //check the original board
+      checkVariation(board, false);
+
+      //if we should allow flipping, check if the board is valid even if it's flipped
+      if (this.allowFlipping) {
+        const flippedBoard = flipBoard(board);
+        if (flippedBoard === null) {
+          continue;
+        }
+
+        //check the flipped board
+        checkVariation(flippedBoard, true);
       }
-
-      // Always continue exploring permutations regardless of current state validity
-      const permutations = this.findPermutations(
-        newBoard,
-        newBoardKey,
-        [...currentSteps, description],
-        movesMade + 1,
-        maxMoves,
-        memoCache,
-        visitedStates
-      );
-
-      // Add these permutations to our running list
-      allPermutations = [...allPermutations, ...permutations];
     }
 
-    // Store the result in the cache with empty steps
-    this.setInMemoCache(
-      memoCache,
-      boardKey,
-      movesMade,
-      allPermutations.map(solution => ({
-        ...solution,
-        steps: solution.steps.slice(currentSteps.length), // Store only the new steps
-      }))
+    //sort the solutions by the number of moves (least to most)
+    //and flips (least to most)
+    validSolutions.sort(
+      (a, b) => (a.flipped ? 1 : 0) - (b.flipped ? 1 : 0) || a.moves.length - b.moves.length
     );
 
-    return allPermutations;
-  }
-
-  private generateAllPossibleMoves(
-    board: MatchBoard,
-    boardKey: number[],
-    movesMade: number,
-    visitedStates: Map<number, any>
-  ): { newBoard: MatchBoard; newBoardKey: number[]; description: string }[] {
-    const moves: { newBoard: MatchBoard; newBoardKey: number[]; description: string }[] = [];
-
-    // For each position in the board
-    for (let i = 0; i < board.length; i++) {
-      const currentSlots = board[i];
-
-      // Try removing each match
-      for (const [key, value] of Object.entries(currentSlots)) {
-        // Skip false slots (already no match there)
-        if (!value) continue;
-
-        // Create a new board with this match removed
-        const newBoard = this.cloneBoard(board);
-        newBoard[i] = { ...newBoard[i], [key]: false };
-
-        // Create a new board key by copying the original and updating the position
-        const newBoardKey = [...boardKey];
-        newBoardKey[i] = this.slotsToBinary(newBoard[i]);
-
-        // Process for original board
-        this.processMatchAdditions(
-          newBoard,
-          newBoardKey,
-          i,
-          j => j < board.length,
-          board,
-          key,
-          false,
-          visitedStates,
-          moves
-        );
-
-        // Handle prepending if enabled
-        if (this.includePrepended) {
-          this.processPrepending(newBoard, i, key, false, movesMade, visitedStates, moves);
-        }
-
-        // Process flipped board if needed
-        if (this.includeFlipped) {
-          const flippedBoard = flipBoard(newBoard);
-          if (flippedBoard) {
-            const flippedBoardKey = this.createBoardKey(flippedBoard);
-
-            this.processMatchAdditions(
-              flippedBoard,
-              flippedBoardKey,
-              i,
-              j => j < flippedBoard.length,
-              flippedBoard,
-              key,
-              true,
-              visitedStates,
-              moves
-            );
-
-            // Handle prepending if enabled
-            if (this.includePrepended) {
-              this.processPrepending(flippedBoard, i, key, true, movesMade, visitedStates, moves);
-            }
-          }
-        }
-      }
-    }
-
-    return moves;
-  }
-
-  private processMatchAdditions(
-    board: MatchBoard,
-    boardKey: number[],
-    sourcePos: number,
-    jCondition: (j: number) => boolean,
-    positionSource: MatchBoard,
-    sourceKey: string,
-    isFlipped: boolean,
-    visitedStates: Map<number, any>,
-    moves: { newBoard: MatchBoard; newBoardKey: number[]; description: string }[]
-  ): void {
-    for (let j = 0; jCondition(j); j++) {
-      for (const [targetKey, targetValue] of Object.entries(positionSource[j])) {
-        // Skip true slots (already a match there)
-        if (targetValue) continue;
-
-        // Don't move match back to same slot
-        if (!isFlipped && sourcePos === j && sourceKey === targetKey) continue;
-
-        // Create a new board with the match added
-        const finalBoard = this.cloneBoard(board);
-        finalBoard[j] = { ...finalBoard[j], [targetKey]: true };
-
-        // Update the board key for the changed position
-        const newBoardKey = [...boardKey];
-        newBoardKey[j] = this.slotsToBinary(finalBoard[j]);
-
-        // Skip if we've already visited this board state
-        if (this.hasVisitedState(visitedStates, newBoardKey)) continue;
-
-        // Mark as visited
-        this.addToVisitedStates(visitedStates, newBoardKey);
-
-        // Add this move to our list
-        let description: string;
-        if (isFlipped) {
-          description = `Take match from position ${sourcePos + 1} ${sourceKey}, flip the equation 180 degrees, then move it to position ${j + 1} ${targetKey}`;
-        } else {
-          description = `Move match from position ${sourcePos + 1} ${sourceKey} to position ${j + 1} ${targetKey}`;
-        }
-
-        moves.push({ newBoard: finalBoard, newBoardKey, description });
-      }
-    }
-  }
-
-  private processPrepending(
-    board: MatchBoard,
-    sourcePos: number,
-    sourceKey: string,
-    isFlipped: boolean,
-    movesMade: number,
-    visitedStates: Map<number, any>,
-    moves: { newBoard: MatchBoard; newBoardKey: number[]; description: string }[]
-  ): void {
-    const movesLeft = this.maxMovableMatches - movesMade;
-
-    if (movesLeft < 1) return;
-
-    const allowedKeys = {
-      1: ['g'],
-      2: ['g', 'addv', 'mul_tl_br', 'mul_tr_bl', 'altg', 'divb', 'divt', 'b', 'c'],
-    };
-
-    // Try prepending a new character to the equation
-    const newSlot = createEmptySlots();
-
-    // For each allowable slot in the potential prepended character
-    for (const targetKey of Object.keys(newSlot)) {
-      if (!allowedKeys[Math.min(movesLeft, 2) as keyof typeof allowedKeys].includes(targetKey)) {
-        continue;
-      }
-
-      // Set the match in the slot
-      newSlot[targetKey as keyof MatchSlots] = true;
-
-      // Create a board with the new character prepended
-      const prependedBoard = this.cloneBoard(board);
-      prependedBoard.unshift({ ...newSlot });
-
-      // Generate new board key - this will need to be completely recalculated
-      const newBoardKey = this.createBoardKey(prependedBoard);
-
-      // Skip if we've already visited this board state
-      if (this.hasVisitedState(visitedStates, newBoardKey)) continue;
-
-      // Mark as visited
-      this.addToVisitedStates(visitedStates, newBoardKey);
-
-      let description: string;
-      if (isFlipped) {
-        description = `Take match from position ${sourcePos + 1} ${sourceKey}, flip the equation 180 degrees, then prepend '${targetKey}' to the equation`;
-      } else {
-        description = `Take match from position ${sourcePos + 1} ${sourceKey} and prepend '${targetKey}' to the equation`;
-      }
-
-      moves.push({ newBoard: prependedBoard, newBoardKey, description });
-    }
-  }
-
-  private cloneBoard(board: MatchBoard): MatchBoard {
-    return board.map(slots => ({ ...slots }));
+    //return the solutions
+    return validSolutions.map(solution => ({
+      solution: solution.equation,
+      steps: solution.moves,
+      flipped: solution.flipped,
+    }));
   }
 }
 
