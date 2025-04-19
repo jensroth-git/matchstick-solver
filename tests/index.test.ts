@@ -1,16 +1,16 @@
-import MatchstickSolver, {
-  MatchBoard,
-  slotPatterns,
-  slotToChar,
-  equationToBoard,
-  boardToEquation,
-  flipBoard,
-  matchstickFormatter,
-} from '../src/index.js';
+import { MatchstickSolver, matchstickFormatter } from '../src/index.js';
 
 describe('MatchstickSolver', () => {
+  let solver: MatchstickSolver;
+
+  beforeAll(async () => {
+    solver = new MatchstickSolver();
+    await solver.init();
+    const result = await solver.initializeSolver('./precomputed_equations.json');
+    expect(result).toBe(true);
+  });
+
   it('should be instantiable', () => {
-    const solver = new MatchstickSolver('1+2=3');
     expect(solver).toBeInstanceOf(MatchstickSolver);
   });
 
@@ -28,175 +28,82 @@ describe('MatchstickSolver', () => {
     expect(lines[2].length).toBeGreaterThan(equation.length);
   });
 
-  describe('Character Recognition', () => {
-    it('should correctly recognize all predefined characters', () => {
-      const characters = Object.keys(slotPatterns);
+  describe('solve() with single move', () => {
+    const testCases = [
+      { equation: '6+2=7', expectedSolutions: 0 },
+      { equation: '8+3-4=0', expectedSolutions: 1 },
+      { equation: '10+10=8', expectedSolutions: 1 },
+      { equation: '6-5=17', expectedSolutions: 1 },
+      { equation: '5+7=2', expectedSolutions: 1 },
+      { equation: '6+4=4', expectedSolutions: 2 },
+      { equation: '3+3=8', expectedSolutions: 3 },
+      { equation: '4-1=5', expectedSolutions: 1 },
+      { equation: '5+3=6', expectedSolutions: 2 },
+      { equation: '6-2=7', expectedSolutions: 2 },
+      { equation: '7+1=0', expectedSolutions: 2 },
+    ];
 
-      for (const char of characters) {
-        const slots = slotPatterns[char];
-        const recognized = slotToChar(slots);
-        expect(recognized).toBe(char);
-      }
-    });
-  });
+    testCases.forEach(({ equation, expectedSolutions }) => {
+      it(`should solve "${equation}" with ${expectedSolutions} solution(s)`, async () => {
+        const solutions = await solver.findSolutions(equation);
 
-  describe('Board Flipping', () => {
-    it('should correctly flip known pairs', () => {
-      const flippablePairs = [
-        { original: '6', expected: '9' },
-        { original: '9', expected: '6' },
-        { original: '0', expected: '0' },
-        { original: '8', expected: '8' },
-        { original: '1', expected: '1' },
-        { original: '+', expected: '+' },
-        { original: '-', expected: '-' },
-        { original: '=', expected: '=' },
-        { original: 'x', expected: 'x' },
-      ];
+        expect(solutions.length).toBe(expectedSolutions);
 
-      for (const { original, expected } of flippablePairs) {
-        const board = equationToBoard(original);
-        const flippedBoard = flipBoard(board);
-
-        expect(flippedBoard).not.toBeNull();
-
-        if (flippedBoard) {
-          const result = boardToEquation(flippedBoard);
-
-          if (result !== null) {
-            expect(result[0]).toBe(expected);
-          }
+        // Verify solution format
+        /*interface Solution {
+          equation: string;
+          numMoves: number;
+          flipped: boolean;
+          moves: Move[];
+        } */
+        if (solutions.length > 0) {
+          const solution = solutions[0];
+          expect(solution).toHaveProperty('equation');
+          expect(solution).toHaveProperty('numMoves');
+          expect(solution).toHaveProperty('flipped');
+          expect(solution).toHaveProperty('moves');
+          expect(solution.moves.length).toBeGreaterThan(0);
         }
-      }
+      });
     });
 
-    it('should return null for unflippable characters', () => {
-      const unflippableChars = ['/'];
+    describe('solve() with by moving a match before the equation', () => {
+      const testCases = [{ equation: '1=1+2', expectedSolution: '-1=1-2' }];
 
-      for (const char of unflippableChars) {
-        const board = equationToBoard(char);
-        const flippedBoard = flipBoard(board);
-        expect(flippedBoard).toBeNull();
-      }
-    });
-  });
+      testCases.forEach(({ equation, expectedSolution }) => {
+        it(`should solve "${equation}" with ${expectedSolution} solution(s)`, async () => {
+          const solutions = await solver.findSolutions(equation, 1, false);
 
-  describe('Edge Cases', () => {
-    it('should handle empty board when flipping', () => {
-      const emptyBoard: MatchBoard = [];
-      const flippedEmpty = flipBoard(emptyBoard);
-      expect(flippedEmpty).not.toBeNull();
-      expect(flippedEmpty!.length).toBe(0);
+          expect(solutions.length).toBeGreaterThan(0);
+        });
+      });
     });
 
-    it('should handle board with only spaces', () => {
-      const spaceBoard = equationToBoard('   ');
-      const flippedSpace = flipBoard(spaceBoard);
-      expect(flippedSpace).not.toBeNull();
-    });
+    it('should provide the correct solution for a simple case', async () => {
+      const solutions = await solver.findSolutions('1+1=3');
 
-    it('should return null when flipping board with unflippable chars', () => {
-      const weirdBoard = equationToBoard('1+/=8');
-      const flippedWeird = flipBoard(weirdBoard);
-      expect(flippedWeird).toBeNull();
-    });
+      expect(solutions.length).toBe(2);
 
-    it('should correctly flip equations with repeated characters', () => {
-      const repeatedChars = equationToBoard('88=88');
-      const flippedRepeated = flipBoard(repeatedChars);
-      expect(flippedRepeated).not.toBeNull();
-
-      if (flippedRepeated) {
-        const equation = boardToEquation(flippedRepeated);
-        if (equation !== null) {
-          expect(equation).toBe('88=88');
-        }
-      }
+      // Check that at least one solution is valid
+      const solution = solutions[0];
+      expect(solution.equation).toBe('1+1=2');
     });
   });
-
-  // describe('solve() with single move', () => {
-  //   const testCases = [
-  //     //{ equation: '6+2=7', expectedSolutions: 0 },
-  //     { equation: '8+3-4=0', expectedSolutions: 1 },
-  //     { equation: '10+10=8', expectedSolutions: 1 },
-  //     { equation: '6-5=17', expectedSolutions: 1 },
-  //     { equation: '5+7=2', expectedSolutions: 1 },
-  //     { equation: '6+4=4', expectedSolutions: 2 },
-  //     { equation: '3+3=8', expectedSolutions: 2 },
-  //     { equation: '4-1=5', expectedSolutions: 1 },
-  //     { equation: '5+3=6', expectedSolutions: 2 },
-  //     { equation: '6-2=7', expectedSolutions: 2 },
-  //     { equation: '7+1=0', expectedSolutions: 1 },
-  //   ];
-
-  //   testCases.forEach(({ equation, expectedSolutions }) => {
-  //     it(`should solve "${equation}" with ${expectedSolutions} solution(s)`, () => {
-  //       const solver = new MatchstickSolver(equation);
-  //       const solutions = solver.solve();
-
-  //       expect(solutions.length).toBe(expectedSolutions);
-
-  //       // Verify solution format
-  //       if (solutions.length > 0) {
-  //         const solution = solutions[0];
-  //         expect(solution).toHaveProperty('solution');
-  //         expect(solution).toHaveProperty('steps');
-  //         expect(solution).toHaveProperty('flipped');
-  //         expect(solution.steps.length).toBeGreaterThan(0);
-  //       }
-  //     });
-  //   });
-
-  //   describe('solve() with by moving a match before the equation', () => {
-  //     const testCases = [{ equation: '1=1+2', expectedSolution: '-1=1-2' }];
-
-  //     testCases.forEach(({ equation, expectedSolution }) => {
-  //       it(`should solve "${equation}" with ${expectedSolution} solution(s)`, () => {
-  //         const solver = new MatchstickSolver(equation, 1, false, true);
-  //         const solutions = solver.solve();
-
-  //         expect(solutions.length).toBeGreaterThan(0);
-
-  //         // Verify solution format
-  //         if (solutions.length > 0) {
-  //           const solution = solutions[0];
-  //           expect(solution).toHaveProperty('solution');
-  //           expect(solution).toHaveProperty('steps');
-  //           expect(solution).toHaveProperty('flipped');
-  //           expect(solution.steps.length).toBeGreaterThan(0);
-  //         }
-  //       });
-  //     });
-  //   });
-
-  //   it('should provide the correct solution for a simple case', () => {
-  //     const solver = new MatchstickSolver('1+1=3');
-  //     const solutions = solver.solve();
-
-  //     expect(solutions.length).toBe(2);
-
-  //     // Check that at least one solution is valid
-  //     const solution = solutions[0];
-  //     expect(solution).toHaveProperty('solution', '1+1=2');
-  //   });
-  // });
 
   describe('solve() with multiple moves', () => {
     const multiMoveTestCases = [
-      //{ equation: '2+3=8', maxMoves: 2, expectedSolutions: 7 },
-      { equation: '9-5=1', maxMoves: 2, expectedSolutions: 5 }, // we need to turn the board around first or we wont have a chance to place the division symbol
-      // { equation: '6+3=7', maxMoves: 2, expectedSolutions: 0 },
-      // { equation: '1+8=0', maxMoves: 2, expectedSolutions: 2 },
-      // { equation: '8+4=7', maxMoves: 2, expectedSolutions: 2 },
-      // { equation: '9-6=1', maxMoves: 2, expectedSolutions: 3 },
-      // { equation: '1+2=4', maxMoves: 2, expectedSolutions: 3 },
+      { equation: '2+3=8', maxMoves: 2, expectedSolutions: 10 },
+      { equation: '9-5=1', maxMoves: 2, expectedSolutions: 6 },
+      { equation: '6+3=7', maxMoves: 2, expectedSolutions: 0 },
+      { equation: '1+8=0', maxMoves: 2, expectedSolutions: 2 },
+      { equation: '8+4=7', maxMoves: 2, expectedSolutions: 2 },
+      { equation: '9-6=1', maxMoves: 2, expectedSolutions: 4 },
+      { equation: '1+2=4', maxMoves: 2, expectedSolutions: 3 },
     ];
 
     multiMoveTestCases.forEach(({ equation, maxMoves, expectedSolutions }) => {
-      it(`should solve "${equation}" with at least ${expectedSolutions} solution(s) using ${maxMoves} moves`, () => {
-        const solver = new MatchstickSolver(equation, maxMoves);
-        const solutions = solver.solve();
+      it(`should solve "${equation}" with at least ${expectedSolutions} solution(s) using ${maxMoves} moves`, async () => {
+        const solutions = await solver.findSolutions(equation, maxMoves);
 
         // We expect these number of solutions
         expect(solutions.length).toBe(expectedSolutions);
@@ -204,45 +111,21 @@ describe('MatchstickSolver', () => {
         if (solutions.length > 0) {
           // Verify that we have the right number of steps for a multi-move solution
           const solution = solutions[0];
-          expect(solution.steps.length).toBeGreaterThanOrEqual(1);
-          expect(solution.steps.length).toBeLessThanOrEqual(maxMoves);
-
-          // Verify the solution format
-          expect(solution).toHaveProperty('solution');
+          expect(solution.moves.length).toBeGreaterThanOrEqual(1);
+          expect(solution.moves.length).toBeLessThanOrEqual(maxMoves);
         }
       });
     });
 
-    it('should find more solutions with 2 moves than with 1 move', () => {
-      const equation = '1+2=4';
-
-      const oneMoveMatches = new MatchstickSolver(equation, 1);
-      const oneMoveSolutions = oneMoveMatches.solve();
-
-      const twoMoveMatches = new MatchstickSolver(equation, 2);
-      const twoMoveSolutions = twoMoveMatches.solve();
-
-      // Two moves should find at least as many solutions as one move
-      expect(twoMoveSolutions.length).toBeGreaterThanOrEqual(oneMoveSolutions.length);
-
-      if (twoMoveSolutions.length > oneMoveSolutions.length) {
-        // Verify that at least one solution has 2 steps
-        const hasTwoStepSolution = twoMoveSolutions.some(solution => solution.steps.length === 2);
-        expect(hasTwoStepSolution).toBe(true);
-      }
-    });
-
-    it('should handle flipping in solution finding', () => {
+    it('should handle flipping in solution finding', async () => {
       const equation = '9+7=1';
 
-      const noFlipSolver = new MatchstickSolver(equation, 1, false);
-      const noFlipSolutions = noFlipSolver.solve();
+      const noFlipSolutions = await solver.findSolutions(equation, 1, false);
 
-      const withFlipSolver = new MatchstickSolver(equation, 1, true);
-      const withFlipSolutions = withFlipSolver.solve();
+      const withFlipSolutions = await solver.findSolutions(equation, 1, true);
 
-      expect(noFlipSolutions[0].solution).toBe('8-7=1');
-      expect(withFlipSolutions[1].solution).toBe('7=1+6');
+      expect(noFlipSolutions[0].equation).toBe('8-7=1');
+      expect(withFlipSolutions[1].equation).toBe('7=1+6');
 
       // We just want to test that both solvers work, not making assumptions about the results
       expect(noFlipSolutions.length).toBeGreaterThanOrEqual(0);

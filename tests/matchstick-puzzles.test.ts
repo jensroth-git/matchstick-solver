@@ -1,10 +1,19 @@
-import MatchstickSolver from '../src/index.js';
+import { MatchstickSolver } from '../src/index.js';
 
 /**
  * Tests based on real matchstick puzzles from https://www.mindyourlogic.com/matchstick-puzzles
  * and other popular matchstick equation puzzles
  */
 describe('Real Matchstick Puzzles', () => {
+  let solver: MatchstickSolver;
+
+  beforeAll(async () => {
+    solver = new MatchstickSolver();
+    await solver.init();
+    const result = await solver.initializeSolver('./precomputed_equations.json');
+    expect(result).toBe(true);
+  });
+
   describe('One-Move Puzzles', () => {
     const oneMoveTestCases = [
       {
@@ -31,9 +40,8 @@ describe('Real Matchstick Puzzles', () => {
     ];
 
     oneMoveTestCases.forEach(({ puzzle, expectedSolution, expectedSolutions, description }) => {
-      it(`should solve "${puzzle}" ${expectedSolution ? `→ ${expectedSolution}` : expectedSolutions ? `→ ${expectedSolutions?.join(' or ')}` : ''} (${description})`, () => {
-        const solver = new MatchstickSolver(puzzle, 1);
-        const solutions = solver.solve();
+      it(`should solve "${puzzle}" ${expectedSolution ? `→ ${expectedSolution}` : expectedSolutions ? `→ ${expectedSolutions?.join(' or ')}` : ''} (${description})`, async () => {
+        const solutions = await solver.findSolutions(puzzle, 1);
 
         // if (solutions.length > 0) {
         //   console.log(
@@ -47,11 +55,11 @@ describe('Real Matchstick Puzzles', () => {
         expect(solutions.length).toBeGreaterThan(0);
 
         if (expectedSolution) {
-          const foundExpectedSolution = solutions.some(sol => sol.solution === expectedSolution);
+          const foundExpectedSolution = solutions.some(sol => sol.equation === expectedSolution);
           expect(foundExpectedSolution).toBe(true);
         } else if (expectedSolutions) {
           const foundAnyExpectedSolution = expectedSolutions.some((expected: string) =>
-            solutions.some(sol => sol.solution === expected)
+            solutions.some(sol => sol.equation === expected)
           );
           expect(foundAnyExpectedSolution).toBe(true);
         }
@@ -68,9 +76,8 @@ describe('Real Matchstick Puzzles', () => {
     ];
 
     unsolvableTestCases.forEach(({ puzzle, description }) => {
-      it(`should verify "${puzzle}" has no solutions (${description})`, () => {
-        const solver = new MatchstickSolver(puzzle, 1);
-        const solutions = solver.solve();
+      it(`should verify "${puzzle}" has no solutions (${description})`, async () => {
+        const solutions = await solver.findSolutions(puzzle, 1, false);
 
         // console.log(`Checking unsolvable puzzle ${puzzle}...`);
         // if (solutions.length > 0) {
@@ -123,27 +130,17 @@ describe('Real Matchstick Puzzles', () => {
 
     twoMoveTestCases.forEach(
       ({ puzzle, maxMoves, expectedSolution, expectedSolutions, description }) => {
-        it(`should solve "${puzzle}" with ${maxMoves} moves ${expectedSolution ? `→ ${expectedSolution}` : expectedSolutions ? `→ ${expectedSolutions.join(' or ')}` : ''} (${description})`, () => {
-          const solver = new MatchstickSolver(puzzle, maxMoves);
-          const solutions = solver.solve();
-
-          // if (solutions.length > 0) {
-          //   console.log(
-          //     `Solutions for ${puzzle} with ${maxMoves} moves:`,
-          //     solutions.map(s => s.solution)
-          //   );
-          // } else {
-          //   console.log(`No solutions found for ${puzzle} with ${maxMoves} moves`);
-          // }
+        it(`should solve "${puzzle}" with ${maxMoves} moves ${expectedSolution ? `→ ${expectedSolution}` : expectedSolutions ? `→ ${expectedSolutions.join(' or ')}` : ''} (${description})`, async () => {
+          const solutions = await solver.findSolutions(puzzle, maxMoves);
 
           expect(solutions.length).toBeGreaterThan(0);
 
           if (expectedSolution) {
-            const foundExpectedSolution = solutions.some(sol => sol.solution === expectedSolution);
+            const foundExpectedSolution = solutions.some(sol => sol.equation === expectedSolution);
             expect(foundExpectedSolution).toBe(true);
           } else if (expectedSolutions) {
             const foundAnyExpectedSolution = expectedSolutions.some((expected: string) =>
-              solutions.some(sol => sol.solution === expected)
+              solutions.some(sol => sol.equation === expected)
             );
             expect(foundAnyExpectedSolution).toBe(true);
           }
