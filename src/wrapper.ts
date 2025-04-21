@@ -83,40 +83,44 @@ class MatchstickSolver {
   }
 
   // Initialize the WebAssembly module
-  async init(): Promise<void> {
+  async init(options?: { wasmUrl?: string }): Promise<void> {
     if (this.initialized) return;
 
     try {
       // @ts-ignore: Dynamic import type mismatch
       this.module = await MatchstickModuleFactory({
-        // Set the locateFile function to find wasm file in the correct location
         locateFile: (filename: string) => {
-          const currentDir = getCurrentDir();
-          const webDir = path.resolve(currentDir, '..', 'web');
-          const filePath = path.join(webDir, filename);
-
-          if (fs.existsSync(filePath)) {
-            return filePath;
+          if (options?.wasmUrl && filename.endsWith('.wasm')) {
+            return options.wasmUrl;
           }
 
-          // Fallback paths
-          const potentialPaths = [
-            // From dist directory
-            path.join(currentDir, 'web', filename),
-            // From src directory
-            path.join(currentDir, '..', 'src', 'web', filename),
-            // From project root
-            path.join(process.cwd(), 'dist', 'web', filename),
-            path.join(process.cwd(), 'src', 'web', filename),
-          ];
+          // fallback to Node paths only if running in Node
+          if (typeof process !== 'undefined' && process.versions?.node) {
+            const currentDir = getCurrentDir();
+            const webDir = path.resolve(currentDir, '..', 'web');
+            const filePath = path.join(webDir, filename);
 
-          for (const potentialPath of potentialPaths) {
-            if (fs.existsSync(potentialPath)) {
-              return potentialPath;
+            if (fs.existsSync(filePath)) return filePath;
+
+            // Fallback paths
+            const potentialPaths = [
+              // From dist directory
+              path.join(currentDir, 'web', filename),
+              // From src directory
+              path.join(currentDir, '..', 'src', 'web', filename),
+              // From project root
+              path.join(process.cwd(), 'dist', 'web', filename),
+              path.join(process.cwd(), 'src', 'web', filename),
+            ];
+
+            for (const potentialPath of potentialPaths) {
+              if (fs.existsSync(potentialPath)) {
+                return potentialPath;
+              }
             }
           }
 
-          console.warn(`WASM file not found: ${filename}. Trying default location.`);
+          console.warn(`WASM file not found: ${filename}. Returning filename as-is.`);
           return filename;
         },
       });

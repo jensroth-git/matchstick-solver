@@ -1,6 +1,6 @@
 {
   "name": "matchstick-solver",
-  "version": "2.0.2",
+  "version": "2.0.4",
   "description": "A package for solving matchstick equation puzzles",
   "type": "module",
   "main": "./dist/index.cjs",
